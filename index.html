@@ -177,7 +177,7 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
     <div class="field">
       <label for="fHold">Jak dlouho musí hluk trvat <output id="oHold"></output></label>
       <input id="fHold" type="range" min="1" max="10" step="1">
-      <small>Krátký zvuk (spadlé pouzdro, bouchnutí dveří) upozornění nespustí.</small>
+      <small>Hluk musí trvat v kuse. Když klesne pod limit, odpočet začne znovu. Krátký zvuk (spadlé pouzdro, bouchnutí dveří) upozornění nespustí.
     </div>
     <div class="field">
       <label for="fMsg">Text upozornění</label>
@@ -365,7 +365,8 @@ function loop(t){
   if(streak&&!examOn&&t-lastWarn>STREAK_RESET)streak=0;
   if(calib){calib.sum+=cur;calib.n++;if(t>=calib.end)finishCalib()}
   else if(t>=snooze&&!examOn){
-    loud=over?Math.min(S.hold,loud+dt):Math.max(0,loud-dt*0.7);
+    /* hluk musí trvat v kuse: jakmile klesne pod limit, odpočet se hned vynuluje */
+    loud=over?Math.min(S.hold,loud+dt):0;
     if(!alarmOn&&loud>=S.hold)startAlarm(t);
   }
   if(alarmOn){
