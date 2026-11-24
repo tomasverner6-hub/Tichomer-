@@ -216,6 +216,8 @@ let ctx=null,an=null,hp=null,mute=null,src=null,stream=null,buf=null,wake=null,c
 let running=false,ms=null,level=0,loud=0,quiet=0,alarmOn=false,alarmAt=0,snooze=0,lastBuzz=0;
 let count=0,loudTotal=0,runTime=0,last=0,uiT=0,histT=0,histAcc=0,histN=0,streak=0,lastWarn=-Infinity,examOn=false;
 const hist=[],HIST_MAX=240;
+let leq=0,sumE=0,sumT=0;const qT=[],qE=[],qD=[];
+const toDb=e=>Math.max(20,Math.min(120,10*Math.log10(e+1e-12)+OFFSET+S.corr));
 
 const fmt=s=>{s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
 const frac=db=>Math.max(0,Math.min(1,(db-MIN)/(MAX-MIN)));
@@ -254,7 +256,7 @@ async function start(){
   if(src)try{src.disconnect()}catch(e){}
   src=ctx.createMediaStreamSource(stream);src.connect(hp);
   stream.getAudioTracks().forEach(t=>t.addEventListener('ended',interrupted));
-  running=true;ms=null;
+  running=true;ms=null;qT.length=qE.length=qD.length=0;sumE=sumT=0;
   $('intro').classList.add('hidden');$('app').classList.remove('hidden');$('resume').classList.add('hidden');
   $('pause').textContent='Pozastavit';$('cMic').textContent='Mikrofon zapnutý';$('cMic').className='chip on';
   lockScreen();
@@ -349,10 +351,16 @@ function loop(t){
   an.getFloatTimeDomainData(buf);
   let s=0;for(let i=0;i<buf.length;i++)s+=buf[i]*buf[i];
   const cur=s/buf.length;
-  ms=ms===null?cur:ms+(cur-ms)*(1-Math.exp(-dt/0.75));
-  level=Math.max(20,Math.min(120,10*Math.log10(ms+1e-12)+OFFSET+S.corr));
+  /* číslo + ručička: časové vážení „Fast" (125 ms) jako u hlukoměru, po utichnutí klesá cca 35 dB/s */
+  ms=ms===null?cur:ms+(cur-ms)*(1-Math.exp(-dt/0.125));
+  level=toDb(ms);
+  /* upozornění: průměr energie za poslední 1 s, takže jedna rána nedrží hodnotu nahoře */
+  if(dt>0){qT.push(t);qE.push(cur*dt);qD.push(dt);sumE+=cur*dt;sumT+=dt}
+  while(qT.length&&t-qT[0]>1000){qT.shift();sumE-=qE.shift();sumT-=qD.shift()}
+  if(!qT.length){sumE=0;sumT=0}
+  leq=sumT>0?toDb(Math.max(0,sumE)/sumT):level;
   runTime+=dt;
-  const over=level>=S.limit;
+  const over=leq>=S.limit;
   if(over)loudTotal+=dt;
   if(streak&&!examOn&&t-lastWarn>STREAK_RESET)streak=0;
   if(calib){calib.sum+=cur;calib.n++;if(t>=calib.end)finishCalib()}
@@ -385,7 +393,7 @@ function frame(t){
 /* texty stačí ~8× za sekundu a mění se jen když je potřeba */
 function setText(id,v){const e=$(id);v=String(v);if(e.textContent!==v)e.textContent=v}
 function ui(){
-  const st=level>=S.limit?'bad':level>=S.limit-6?'warn':'ok';
+  const st=leq>=S.limit?'bad':leq>=S.limit-6?'warn':'ok';
   const cls=st==='ok'?'':st;
   if(cls!==bodyState){bodyState=cls;document.body.className=cls}
   setText('state',calib?'Měřím tvůj hlas…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid');
