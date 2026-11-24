@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111316">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Tichoměr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#111316;--panel:#1b1e23;--line:#2c3138;--ink:#f3f5f7;--mute:#9aa3ad;--ok:#2fbf71;--warn:#f5a524;--bad:#ff3b30;--acc:var(--ok)}
+*{box-sizing:border-box;min-width:0}
+html,body{min-height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 "Atkinson Hyperlegible",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%;overflow-x:clip;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+body.warn{--acc:var(--warn)}body.bad{--acc:var(--bad)}
+.hidden{display:none!important}
+button{font:inherit;color:inherit;border-radius:14px;min-height:48px;padding:0 18px;cursor:pointer;background:var(--panel);border:1px solid var(--line)}
+button:disabled{opacity:.6}
+button:focus-visible,input:focus-visible{outline:3px solid #7cc4ff;outline-offset:2px}
+.primary{background:var(--ok);color:#06210f;font-weight:700;border:0;font-size:20px;min-height:60px;width:100%}
+.btns .primary{font-size:17px;min-height:48px}
+/* úvod */
+#intro{max-width:520px;margin:0 auto;padding:32px 20px;display:flex;flex-direction:column;gap:20px;min-height:100vh;justify-content:center}
+h1{font-size:44px;line-height:1.05;margin:0}
+.lead{color:var(--mute);margin:0;font-size:18px}
+ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
+.err{background:#3a1414;border:1px solid #6b2121;color:#ffd7d4;padding:14px 16px;border-radius:12px}
+.note{color:var(--mute);font-size:14px;margin:0}
+/* měření */
+#app{max-width:1100px;margin:0 auto;padding:12px 16px 20px;display:grid;gap:14px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.top b{font-size:20px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font-size:13px;padding:4px 10px;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--mute)}
+.chip.on{color:var(--ink)}.chip.bad{color:#ffb4ae;border-color:#6b2121}
+.gauge{position:relative;width:100%;max-width:520px;margin:0 auto}
+.gauge svg{display:block;width:100%;height:auto}
+#arc{transition:stroke .3s}
+.read{position:absolute;left:0;right:0;bottom:2%;text-align:center;line-height:1}
+.num{font-size:clamp(64px,22vw,128px);font-weight:700;font-variant-numeric:tabular-nums;color:var(--acc);transition:color .3s}
+.unit{font-size:15px;color:var(--mute);margin-top:6px}
+.state{text-align:center;font-size:clamp(26px,7vw,40px);font-weight:700;color:var(--acc);margin:4px 0 0}
+.side{display:grid;gap:14px;align-content:start}
+.hold{display:grid;gap:6px}
+.hold small{color:var(--mute);font-size:15px;display:flex;justify-content:space-between;gap:8px}
+.hold small span:last-child{white-space:nowrap}
+.bar{height:14px;border-radius:99px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--acc);border-radius:99px}
+.fig{position:relative;height:110px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.fig canvas{position:absolute;inset:0;width:100%;height:100%}
+.fig span{position:absolute;left:10px;top:6px;font-size:13px;color:var(--mute)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stat small{color:var(--mute);font-size:13px}
+.btns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+@media (orientation:landscape) and (min-width:700px){#app{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center}.top{grid-column:1/-1}}
+/* upozornění */
+#alarm{position:fixed;inset:0;z-index:20;background:var(--bad);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+  padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));text-align:center;animation:pulse 1.2s ease-in-out infinite alternate;cursor:pointer}
+#alarm h2{font-size:clamp(44px,13vw,140px);line-height:1.02;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+#alarm p{margin:0;font-size:20px;opacity:.9}
+@keyframes pulse{from{background:#ff3b30}to{background:#b8160c}}
+@media (prefers-reduced-motion:reduce){#alarm{animation:none}}
+#resume{position:fixed;inset:0;z-index:25;background:rgba(17,19,22,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+#resume h2{margin:0;font-size:30px}
+#resume .primary{max-width:420px}
+/* nastavení */
+.sheetwrap{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#191c21;border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow:auto;
+  padding:20px 20px calc(20px + env(safe-area-inset-bottom));display:grid;gap:18px}
+.sheet h3{margin:0;font-size:24px}
+.field{display:grid;gap:6px}
+.field label{display:flex;justify-content:space-between;gap:10px;font-weight:700}
+.field output{font-weight:400;color:var(--mute);white-space:nowrap}
+.field small{color:var(--mute);font-size:14px}
+input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--ok)}
+input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:#0f1114;color:var(--ink)}
+.check{display:flex;gap:12px;align-items:flex-start;min-height:44px;cursor:pointer}
+.check input{width:24px;height:24px;margin:2px 0 0;accent-color:var(--ok);flex:none}
+.calib{display:grid;gap:8px}
+</style>
+</head>
+<body>
+
+<main id="intro">
+  <h1>Tichoměr</h1>
+  <p class="lead">Hlídá hluk ve třídě. Když je hlučno déle než pár sekund, na displeji se objeví velké upozornění.</p>
+  <ul class="tips">
+    <li>Polož telefon displejem nahoru na první lavici.</li>
+    <li>Po spuštění povol přístup k mikrofonu.</li>
+    <li>V nastavení si zvol limit, nebo nech aplikaci změřit, jak hlasité je ve třídě ticho.</li>
+  </ul>
+  <div id="err" class="err hidden" role="alert"></div>
+  <button id="go" class="primary">Spustit měření</button>
+  <p class="note">Nic se nenahrává ani neodesílá. Telefon jen průběžně počítá hlasitost.</p>
+</main>
+
+<div id="app" class="hidden">
+  <div class="top">
+    <b>Tichoměr</b>
+    <div class="chips"><span id="cMic" class="chip on">Mikrofon zapnutý</span><span id="cWake" class="chip">Displej</span></div>
+  </div>
+  <div>
+    <div class="gauge">
+      <svg viewBox="0 0 300 165" aria-hidden="true">
+        <path d="M30 150A120 120 0 0 1 270 150" fill="none" stroke="#2c3138" stroke-width="22" stroke-linecap="round" pathLength="100"/>
+        <path id="arc" d="M30 150A120 120 0 0 1 270 150" fill="none" stroke="var(--acc)" stroke-width="22" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
+        <line id="tick" x1="150" y1="150" x2="150" y2="150" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div class="read"><div id="num" class="num">--</div><div class="unit">dB (přibližně)</div></div>
+    </div>
+    <p id="state" class="state">Klid</p>
+  </div>
+  <div class="side">
+    <div class="hold">
+      <small><span id="holdTxt">Pod limitem</span><span id="limTxt">Limit 65 dB</span></small>
+      <div class="bar"><i id="holdBar"></i></div>
+    </div>
+    <div class="fig"><canvas id="cv"></canvas><span>Posledních 60 s</span></div>
+    <div class="stats">
+      <div class="stat"><b id="sCount">0</b><small>upozornění</small></div>
+      <div class="stat"><b id="sLoud">0:00</b><small>nad limitem</small></div>
+      <div class="stat"><b id="sTime">0:00</b><small>měří</small></div>
+    </div>
+    <div class="btns"><button id="pause">Pozastavit</button><button id="openSet">Nastavení</button></div>
+  </div>
+</div>
+
+<div id="alarm" class="hidden" role="alert">
+  <h2 id="aMsg"></h2>
+  <p><span id="aDb">--</span> dB · klepni pro zavření</p>
+</div>
+
+<div id="resume" class="hidden">
+  <h2>Měření se přerušilo</h2>
+  <p id="resNote" class="note">iPhone vypne mikrofon, když přepneš do jiné aplikace nebo zamkneš displej.</p>
+  <button id="resBtn" class="primary">Pokračovat v měření</button>
+</div>
+
+<div id="set" class="sheetwrap hidden">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setH">
+    <h3 id="setH">Nastavení</h3>
+    <div class="field">
+      <label for="fLimit">Limit hluku <output id="oLimit"></output></label>
+      <input id="fLimit" type="range" min="40" max="95" step="1">
+    </div>
+    <div class="calib">
+      <button id="calBtn">Změřit ticho ve třídě (5 s)</button>
+      <p id="calTxt" class="note">Ať jsou všichni 5 sekund potichu. Limit se pak nastaví na ticho + 15 dB.</p>
+    </div>
+    <div class="field">
+      <label for="fHold">Jak dlouho musí hluk trvat <output id="oHold"></output></label>
+      <input id="fHold" type="range" min="1" max="10" step="1">
+      <small>Krátký zvuk (spadlé pouzdro, bouchnutí dveří) upozornění nespustí.</small>
+    </div>
+    <div class="field">
+      <label for="fMsg">Text na displeji</label>
+      <input id="fMsg" type="text" maxlength="60">
+    </div>
+    <label class="check"><input id="fVib" type="checkbox"><span>Vibrovat<br><small class="note">Funguje jen na Androidu. iPhone webovým stránkám vibrovat nedovolí.</small></span></label>
+    <label class="check"><input id="fSnd" type="checkbox"><span>Pípnout při upozornění</span></label>
+    <div class="field">
+      <label for="fCorr">Korekce měření <output id="oCorr"></output></label>
+      <input id="fCorr" type="range" min="-20" max="20" step="1">
+      <small>Telefon není přesný hlukoměr. Pokud máš skutečný hlukoměr, posuň údaj, aby seděl.</small>
+    </div>
+    <div class="btns"><button id="resetBtn">Vynulovat počítadla</button><button id="closeSet" class="primary">Hotovo</button></div>
+  </div>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const KEY='tichomer-v1',OFFSET=100,MIN=30,MAX=100,RES_NOTE=$('resNote').textContent;
+const DEF={limit:65,hold:3,msg:'Moc hluku! Ztište se, prosím.',vib:true,snd:false,corr:0};
+const S={...DEF};
+try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+
+let ctx=null,an=null,hp=null,mute=null,src=null,stream=null,buf=null,wake=null,calib=null;
+let running=false,ms=null,level=0,loud=0,quiet=0,alarmOn=false,alarmAt=0,snooze=0,lastBuzz=0;
+let count=0,loudTotal=0,runTime=0,last=0,uiT=0,histT=0,histAcc=0,histN=0;
+const hist=[],HIST_MAX=240;
+
+const fmt=s=>{s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const frac=db=>Math.max(0,Math.min(1,(db-MIN)/(MAX-MIN)));
+
+function showErr(t){
+  const e=$('err');e.textContent=t;e.classList.remove('hidden');
+  $('resNote').textContent=t;
+  if(!$('app').classList.contains('hidden'))$('resume').classList.remove('hidden');
+}
+
+async function start(){
+  $('err').classList.add('hidden');
+  if(!window.isSecureContext||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    showErr('Mikrofon tu nejde použít. Stránka musí být otevřená přes https:// přímo v Safari (nebo Chrome).');return false}
+  try{
+    if(!ctx){const AC=window.AudioContext||window.webkitAudioContext;ctx=new AC()}
+    ctx.resume().catch(()=>{});
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  }catch(e){
+    showErr(e&&e.name==='NotAllowedError'
+      ?'Přístup k mikrofonu je zakázaný. Povol mikrofon pro tuto stránku v nastavení prohlížeče a stránku obnov.'
+      :'Mikrofon se nepodařilo spustit ('+((e&&e.name)||'chyba')+').');
+    return false}
+  try{await ctx.resume()}catch(e){}
+  if(!an){
+    hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=120;
+    an=ctx.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);
+    mute=ctx.createGain();mute.gain.value=0;
+    hp.connect(an);an.connect(mute);mute.connect(ctx.destination);
+    ctx.onstatechange=()=>{
+      if(!running||ctx.state==='running'||document.visibilityState!=='visible')return;
+      ctx.resume().catch(()=>{});
+      setTimeout(()=>{if(running&&ctx.state!=='running')interrupted()},1000);
+    };
+  }
+  if(src)try{src.disconnect()}catch(e){}
+  src=ctx.createMediaStreamSource(stream);src.connect(hp);
+  stream.getAudioTracks().forEach(t=>t.addEventListener('ended',interrupted));
+  running=true;ms=null;
+  $('intro').classList.add('hidden');$('app').classList.remove('hidden');$('resume').classList.add('hidden');
+  $('pause').textContent='Pozastavit';$('cMic').textContent='Mikrofon zapnutý';$('cMic').className='chip on';
+  lockScreen();
+  return true;
+}
+
+function stopMic(){
+  running=false;
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=null;
+  if(wake){wake.release().catch(()=>{});wake=null}
+  if(calib){calib=null;$('calBtn').disabled=false;$('calTxt').textContent='Měření ticha se přerušilo. Zkus to znovu.'}
+  endAlarm();
+  $('cMic').textContent='Mikrofon vypnutý';$('cMic').className='chip';
+  showWake();
+}
+function interrupted(){
+  if(!running)return;
+  stopMic();
+  $('resNote').textContent=RES_NOTE;
+  $('resume').classList.remove('hidden');
+}
+
+async function lockScreen(){
+  try{
+    if('wakeLock' in navigator&&document.visibilityState==='visible'&&!wake){
+      wake=await navigator.wakeLock.request('screen');
+      wake.addEventListener('release',()=>{wake=null;showWake()});
+    }
+  }catch(e){wake=null}
+  showWake();
+}
+function showWake(){
+  const c=$('cWake');
+  if(wake){c.textContent='Displej nezhasne';c.className='chip on'}
+  else{c.textContent='Displej může zhasnout: vypni automatické zamykání';c.className='chip bad'}
+}
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState!=='visible'||!running)return;
+  lockScreen();
+  const tr=stream&&stream.getAudioTracks()[0];
+  if(!tr||tr.readyState==='ended'){interrupted();return}
+  try{await ctx.resume()}catch(e){}
+  if(ctx.state!=='running')interrupted();
+});
+
+function startAlarm(now){
+  alarmOn=true;alarmAt=now;quiet=0;count++;
+  $('aMsg').textContent=S.msg.trim()||DEF.msg;
+  $('alarm').classList.remove('hidden');
+  buzz(now);
+}
+function buzz(now){
+  lastBuzz=now;
+  if(S.vib&&navigator.vibrate)try{navigator.vibrate([400,150,400,150,400])}catch(e){}
+  if(S.snd&&ctx)beep();
+}
+function beep(){
+  const t=ctx.currentTime;
+  [0,0.22].forEach((d,i)=>{
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=i?660:880;
+    g.gain.setValueAtTime(0.0001,t+d);g.gain.exponentialRampToValueAtTime(0.4,t+d+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.18);
+    o.connect(g);g.connect(ctx.destination);o.start(t+d);o.stop(t+d+0.2);
+  });
+}
+function endAlarm(){
+  if(!alarmOn)return;
+  alarmOn=false;loud=0;
+  $('alarm').classList.add('hidden');
+  if(navigator.vibrate)try{navigator.vibrate(0)}catch(e){}
+}
+$('alarm').addEventListener('click',()=>{endAlarm();snooze=performance.now()+5000});
+
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt=last?Math.min(0.25,(t-last)/1000):0;last=t;
+  if(!running||!an)return;
+  an.getFloatTimeDomainData(buf);
+  let s=0;for(let i=0;i<buf.length;i++)s+=buf[i]*buf[i];
+  const cur=s/buf.length;
+  ms=ms===null?cur:ms+(cur-ms)*(1-Math.exp(-dt/0.75));
+  level=Math.max(20,Math.min(120,10*Math.log10(ms+1e-12)+OFFSET+S.corr));
+  runTime+=dt;
+  const over=level>=S.limit;
+  if(over)loudTotal+=dt;
+  if(calib){calib.sum+=cur;calib.n++;if(t>=calib.end)finishCalib()}
+  else if(t>=snooze){
+    loud=over?Math.min(S.hold,loud+dt):Math.max(0,loud-dt*0.7);
+    if(!alarmOn&&loud>=S.hold)startAlarm(t);
+  }
+  if(alarmOn){
+    quiet=over?0:quiet+dt;
+    if(quiet>=2&&t-alarmAt>=4000)endAlarm();
+    else if(over&&t-lastBuzz>=3000)buzz(t);
+  }
+  histAcc+=level;histN++;
+  if(t-histT>=250){hist.push(histAcc/histN);histAcc=0;histN=0;histT=t;if(hist.length>HIST_MAX)hist.shift();draw()}
+  if(t-uiT>=120){uiT=t;ui()}
+}
+
+function ui(){
+  const st=level>=S.limit?'bad':level>=S.limit-6?'warn':'ok';
+  document.body.className=st==='ok'?'':st;
+  const r=Math.round(level);
+  $('num').textContent=r;$('aDb').textContent=r;
+  $('state').textContent=calib?'Měřím ticho…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid';
+  $('arc').setAttribute('stroke-dasharray',(frac(level)*100).toFixed(2)+' 100');
+  $('holdBar').style.width=(alarmOn?100:loud/S.hold*100).toFixed(1)+'%';
+  $('holdTxt').textContent=alarmOn?'Upozornění běží':loud>0?'Upozornění za '+Math.max(0,S.hold-loud).toFixed(1)+' s':'Pod limitem';
+  $('sCount').textContent=count;$('sLoud').textContent=fmt(loudTotal);$('sTime').textContent=fmt(runTime);
+}
+
+function tick(){
+  const a=Math.PI*(1-frac(S.limit)),L=$('tick');
+  L.setAttribute('x1',(150+104*Math.cos(a)).toFixed(1));L.setAttribute('y1',(150-104*Math.sin(a)).toFixed(1));
+  L.setAttribute('x2',(150+136*Math.cos(a)).toFixed(1));L.setAttribute('y2',(150-136*Math.sin(a)).toFixed(1));
+  $('limTxt').textContent='Limit '+S.limit+' dB';
+}
+
+const cv=$('cv');
+function draw(){
+  const W=cv.clientWidth,H=cv.clientHeight,d=window.devicePixelRatio||1;
+  if(!W||!H)return;
+  if(cv.width!==Math.round(W*d)||cv.height!==Math.round(H*d)){cv.width=Math.round(W*d);cv.height=Math.round(H*d)}
+  const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,W,H);
+  const y=v=>H-8-frac(v)*(H-32);
+  g.strokeStyle='#ff3b30';g.lineWidth=1.5;g.setLineDash([6,5]);
+  g.beginPath();g.moveTo(0,y(S.limit));g.lineTo(W,y(S.limit));g.stroke();g.setLineDash([]);
+  if(hist.length<2)return;
+  const step=W/(HIST_MAX-1);
+  g.beginPath();
+  hist.forEach((v,i)=>{const x=W-(hist.length-1-i)*step;i?g.lineTo(x,y(v)):g.moveTo(x,y(v))});
+  g.strokeStyle='#f3f5f7';g.lineWidth=2;g.lineJoin='round';g.stroke();
+}
+const ro=new ResizeObserver(draw);ro.observe(cv);
+
+function fill(){
+  $('fLimit').value=S.limit;$('fHold').value=S.hold;$('fMsg').value=S.msg;
+  $('fVib').checked=S.vib;$('fSnd').checked=S.snd;$('fCorr').value=S.corr;
+  out();
+}
+function out(){
+  $('oLimit').textContent=S.limit+' dB';$('oHold').textContent=S.hold+' s';
+  $('oCorr').textContent=(S.corr>0?'+':'')+S.corr+' dB';
+  tick();draw();
+}
+$('fLimit').addEventListener('input',e=>{S.limit=+e.target.value;out();save()});
+$('fHold').addEventListener('input',e=>{S.hold=+e.target.value;loud=Math.min(loud,S.hold);out();save()});
+$('fCorr').addEventListener('input',e=>{S.corr=+e.target.value;out();save()});
+$('fMsg').addEventListener('input',e=>{S.msg=e.target.value;save()});
+$('fVib').addEventListener('change',e=>{S.vib=e.target.checked;save();if(S.vib&&navigator.vibrate)try{navigator.vibrate(200)}catch(x){}});
+$('fSnd').addEventListener('change',e=>{S.snd=e.target.checked;save();if(S.snd&&ctx)beep()});
+
+$('calBtn').addEventListener('click',()=>{
+  if(!running){$('calTxt').textContent='Nejdřív spusť měření.';return}
+  endAlarm();loud=0;
+  calib={end:performance.now()+5000,sum:0,n:0};
+  $('calBtn').disabled=true;$('calTxt').textContent='Měřím… 5 sekund ticho, prosím.';
+});
+function finishCalib(){
+  const db=10*Math.log10(calib.sum/Math.max(1,calib.n)+1e-12)+OFFSET+S.corr;
+  calib=null;loud=0;
+  S.limit=Math.max(40,Math.min(95,Math.round(db+15)));save();fill();
+  $('calBtn').disabled=false;
+  $('calTxt').textContent='Ticho ve třídě: '+Math.round(db)+' dB. Limit nastaven na '+S.limit+' dB.';
+}
+
+$('openSet').addEventListener('click',()=>{fill();$('set').classList.remove('hidden')});
+$('closeSet').addEventListener('click',()=>$('set').classList.add('hidden'));
+$('set').addEventListener('click',e=>{if(e.target===$('set'))$('set').classList.add('hidden')});
+$('pause').addEventListener('click',async()=>{
+  if(running){stopMic();$('pause').textContent='Pokračovat';$('state').textContent='Pozastaveno';document.body.className=''}
+  else await start();
+});
+$('go').addEventListener('click',async()=>{
+  const b=$('go');b.disabled=true;b.textContent='Spouštím…';
+  await start();
+  b.disabled=false;b.textContent='Spustit měření';
+});
+$('resBtn').addEventListener('click',()=>start());
+$('resetBtn').addEventListener('click',()=>{count=0;loudTotal=0;runTime=0;hist.length=0;ui();draw()});
+
+fill();
+requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
