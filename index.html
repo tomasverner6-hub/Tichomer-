@@ -66,6 +66,15 @@ ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
 #alarm p{margin:0;font-size:20px;opacity:.9}
 @keyframes pulse{from{background:#ff3b30}to{background:#b8160c}}
 @media (prefers-reduced-motion:reduce){#alarm{animation:none}}
+#alarm .step{font-size:20px;font-weight:700;opacity:.95}
+/* písemka: klidný „papír", žádné blikání */
+#exam{position:fixed;inset:0;z-index:22;background:#fbfaf7;color:#16181b;display:flex;flex-direction:column;justify-content:center;gap:18px;cursor:pointer;
+  padding:max(28px,env(safe-area-inset-top)) clamp(28px,8vw,80px) max(28px,env(safe-area-inset-bottom)) clamp(44px,12vw,120px);
+  background-image:repeating-linear-gradient(to bottom,transparent 0 43px,#dde4ec 43px 44px)}
+#exam::before{content:"";position:absolute;top:0;bottom:0;left:clamp(24px,7vw,72px);width:2px;background:#e3a3a3}
+#exam small{font-size:17px;color:#5b6470}
+#exam h2{font-size:clamp(48px,14vw,150px);line-height:1;margin:0;text-wrap:balance;overflow-wrap:anywhere}
+#exam p{margin:0;font-size:17px;color:#5b6470}
 #resume{position:fixed;inset:0;z-index:25;background:rgba(17,19,22,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
 #resume h2{margin:0;font-size:30px}
 #resume .primary{max-width:420px}
@@ -79,6 +88,7 @@ ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
 .field output{font-weight:400;color:var(--mute);white-space:nowrap}
 .field small{color:var(--mute);font-size:14px}
 input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--ok)}
+input:disabled{opacity:.45}
 input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:#0f1114;color:var(--ink)}
 .check{display:flex;gap:12px;align-items:flex-start;min-height:44px;cursor:pointer}
 .check input{width:24px;height:24px;margin:2px 0 0;accent-color:var(--ok);flex:none}
@@ -93,7 +103,8 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
   <ul class="tips">
     <li>Polož telefon displejem nahoru na první lavici.</li>
     <li>Po spuštění povol přístup k mikrofonu.</li>
-    <li>V nastavení si zvol limit, nebo nech aplikaci změřit, jak hlasité je ve třídě ticho.</li>
+    <li>V nastavení nech aplikaci změřit tvůj hlas při výkladu. Limit se nastaví kousek nad něj.</li>
+    <li>Po 5 upozorněních za sebou se ukáže písemka.</li>
   </ul>
   <div id="err" class="err hidden" role="alert"></div>
   <button id="go" class="primary">Spustit měření</button>
@@ -123,7 +134,7 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
     </div>
     <div class="fig"><canvas id="cv"></canvas><span>Posledních 60 s</span></div>
     <div class="stats">
-      <div class="stat"><b id="sCount">0</b><small>upozornění</small></div>
+      <div class="stat"><b id="sCount">0</b><small id="sCountL">upozornění</small></div>
       <div class="stat"><b id="sLoud">0:00</b><small>nad limitem</small></div>
       <div class="stat"><b id="sTime">0:00</b><small>měří</small></div>
     </div>
@@ -132,8 +143,15 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
 </div>
 
 <div id="alarm" class="hidden" role="alert">
+  <span id="aStep" class="step"></span>
   <h2 id="aMsg"></h2>
   <p><span id="aDb">--</span> dB · klepni pro zavření</p>
+</div>
+
+<div id="exam" class="hidden" role="alert">
+  <small id="eCount"></small>
+  <h2 id="eMsg"></h2>
+  <p>Klepni pro zavření</p>
 </div>
 
 <div id="resume" class="hidden">
@@ -150,8 +168,8 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
       <input id="fLimit" type="range" min="40" max="95" step="1">
     </div>
     <div class="calib">
-      <button id="calBtn">Změřit ticho ve třídě (5 s)</button>
-      <p id="calTxt" class="note">Ať jsou všichni 5 sekund potichu. Limit se pak nastaví na ticho + 15 dB.</p>
+      <button id="calBtn">Změřit hlas učitele (5 s)</button>
+      <p id="calTxt" class="note">Mluv 5 sekund normálně jako při výkladu, třída je potichu. Limit se nastaví na tvůj hlas + 5 dB.</p>
     </div>
     <div class="field">
       <label for="fHold">Jak dlouho musí hluk trvat <output id="oHold"></output></label>
@@ -159,8 +177,17 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
       <small>Krátký zvuk (spadlé pouzdro, bouchnutí dveří) upozornění nespustí.</small>
     </div>
     <div class="field">
-      <label for="fMsg">Text na displeji</label>
+      <label for="fMsg">Text upozornění</label>
       <input id="fMsg" type="text" maxlength="60">
+    </div>
+    <label class="check"><input id="fExam" type="checkbox"><span>Písemka po opakovaném hluku<br><small class="note">Počítadlo se vynuluje po 10 minutách bez upozornění.</small></span></label>
+    <div class="field">
+      <label for="fExamN">Po kolika upozorněních za sebou <output id="oExamN"></output></label>
+      <input id="fExamN" type="range" min="3" max="10" step="1">
+    </div>
+    <div class="field">
+      <label for="fExamMsg">Text písemky</label>
+      <input id="fExamMsg" type="text" maxlength="40">
     </div>
     <label class="check"><input id="fVib" type="checkbox"><span>Vibrovat<br><small class="note">Funguje jen na Androidu. iPhone webovým stránkám vibrovat nedovolí.</small></span></label>
     <label class="check"><input id="fSnd" type="checkbox"><span>Pípnout při upozornění</span></label>
@@ -176,15 +203,15 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
 <script>
 {
 const $=id=>document.getElementById(id);
-const KEY='tichomer-v1',OFFSET=100,MIN=30,MAX=100,RES_NOTE=$('resNote').textContent;
-const DEF={limit:65,hold:3,msg:'Moc hluku! Ztište se, prosím.',vib:true,snd:false,corr:0};
+const KEY='tichomer-v2',OFFSET=100,MIN=30,MAX=100,RES_NOTE=$('resNote').textContent,STREAK_RESET=600000;
+const DEF={limit:70,hold:5,msg:'Moc hluku! Ztište se, prosím.',vib:true,snd:false,corr:0,exam:true,examN:5,examMsg:'Píšeme písemku.'};
 const S={...DEF};
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 
 let ctx=null,an=null,hp=null,mute=null,src=null,stream=null,buf=null,wake=null,calib=null;
 let running=false,ms=null,level=0,loud=0,quiet=0,alarmOn=false,alarmAt=0,snooze=0,lastBuzz=0;
-let count=0,loudTotal=0,runTime=0,last=0,uiT=0,histT=0,histAcc=0,histN=0;
+let count=0,loudTotal=0,runTime=0,last=0,uiT=0,histT=0,histAcc=0,histN=0,streak=0,lastWarn=-Infinity,examOn=false;
 const hist=[],HIST_MAX=240;
 
 const fmt=s=>{s=Math.floor(s);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
@@ -272,11 +299,24 @@ document.addEventListener('visibilitychange',async()=>{
 });
 
 function startAlarm(now){
-  alarmOn=true;alarmAt=now;quiet=0;count++;
+  if(now-lastWarn>STREAK_RESET)streak=0;
+  lastWarn=now;count++;loud=0;
+  if(S.exam){streak++;if(streak>=S.examN){showExam();return}}
+  alarmOn=true;alarmAt=now;quiet=0;
+  $('aStep').textContent=S.exam?'Upozornění '+streak+' z '+S.examN:'';
   $('aMsg').textContent=S.msg.trim()||DEF.msg;
   $('alarm').classList.remove('hidden');
   buzz(now);
 }
+function showExam(){
+  examOn=true;
+  $('eCount').textContent=streak+'. upozornění za sebou';
+  $('eMsg').textContent=S.examMsg.trim()||DEF.examMsg;
+  $('exam').classList.remove('hidden');
+  if(S.vib&&navigator.vibrate)try{navigator.vibrate([800,200,800,200,800])}catch(e){}
+  if(S.snd&&ctx)beep();
+}
+$('exam').addEventListener('click',()=>{examOn=false;streak=0;loud=0;$('exam').classList.add('hidden');snooze=performance.now()+5000;ui()});
 function buzz(now){
   lastBuzz=now;
   if(S.vib&&navigator.vibrate)try{navigator.vibrate([400,150,400,150,400])}catch(e){}
@@ -311,8 +351,9 @@ function loop(t){
   runTime+=dt;
   const over=level>=S.limit;
   if(over)loudTotal+=dt;
+  if(streak&&!examOn&&t-lastWarn>STREAK_RESET)streak=0;
   if(calib){calib.sum+=cur;calib.n++;if(t>=calib.end)finishCalib()}
-  else if(t>=snooze){
+  else if(t>=snooze&&!examOn){
     loud=over?Math.min(S.hold,loud+dt):Math.max(0,loud-dt*0.7);
     if(!alarmOn&&loud>=S.hold)startAlarm(t);
   }
@@ -331,11 +372,13 @@ function ui(){
   document.body.className=st==='ok'?'':st;
   const r=Math.round(level);
   $('num').textContent=r;$('aDb').textContent=r;
-  $('state').textContent=calib?'Měřím ticho…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid';
+  $('state').textContent=calib?'Měřím tvůj hlas…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid';
   $('arc').setAttribute('stroke-dasharray',(frac(level)*100).toFixed(2)+' 100');
   $('holdBar').style.width=(alarmOn?100:loud/S.hold*100).toFixed(1)+'%';
   $('holdTxt').textContent=alarmOn?'Upozornění běží':loud>0?'Upozornění za '+Math.max(0,S.hold-loud).toFixed(1)+' s':'Pod limitem';
-  $('sCount').textContent=count;$('sLoud').textContent=fmt(loudTotal);$('sTime').textContent=fmt(runTime);
+  $('sCount').textContent=S.exam?streak+' / '+S.examN:count;
+  $('sCountL').textContent=S.exam?'do písemky':'upozornění';
+  $('sLoud').textContent=fmt(loudTotal);$('sTime').textContent=fmt(runTime);
 }
 
 function tick(){
@@ -365,10 +408,12 @@ const ro=new ResizeObserver(draw);ro.observe(cv);
 function fill(){
   $('fLimit').value=S.limit;$('fHold').value=S.hold;$('fMsg').value=S.msg;
   $('fVib').checked=S.vib;$('fSnd').checked=S.snd;$('fCorr').value=S.corr;
+  $('fExam').checked=S.exam;$('fExamN').value=S.examN;$('fExamMsg').value=S.examMsg;
   out();
 }
 function out(){
-  $('oLimit').textContent=S.limit+' dB';$('oHold').textContent=S.hold+' s';
+  $('oLimit').textContent=S.limit+' dB';$('oHold').textContent=S.hold+' s';$('oExamN').textContent=S.examN+'×';
+  $('fExamN').disabled=$('fExamMsg').disabled=!S.exam;
   $('oCorr').textContent=(S.corr>0?'+':'')+S.corr+' dB';
   tick();draw();
 }
@@ -378,19 +423,22 @@ $('fCorr').addEventListener('input',e=>{S.corr=+e.target.value;out();save()});
 $('fMsg').addEventListener('input',e=>{S.msg=e.target.value;save()});
 $('fVib').addEventListener('change',e=>{S.vib=e.target.checked;save();if(S.vib&&navigator.vibrate)try{navigator.vibrate(200)}catch(x){}});
 $('fSnd').addEventListener('change',e=>{S.snd=e.target.checked;save();if(S.snd&&ctx)beep()});
+$('fExam').addEventListener('change',e=>{S.exam=e.target.checked;streak=0;out();ui();save()});
+$('fExamN').addEventListener('input',e=>{S.examN=+e.target.value;out();ui();save()});
+$('fExamMsg').addEventListener('input',e=>{S.examMsg=e.target.value;save()});
 
 $('calBtn').addEventListener('click',()=>{
   if(!running){$('calTxt').textContent='Nejdřív spusť měření.';return}
   endAlarm();loud=0;
   calib={end:performance.now()+5000,sum:0,n:0};
-  $('calBtn').disabled=true;$('calTxt').textContent='Měřím… 5 sekund ticho, prosím.';
+  $('calBtn').disabled=true;$('calTxt').textContent='Měřím… mluv 5 sekund normálně jako při výkladu.';
 });
 function finishCalib(){
   const db=10*Math.log10(calib.sum/Math.max(1,calib.n)+1e-12)+OFFSET+S.corr;
   calib=null;loud=0;
-  S.limit=Math.max(40,Math.min(95,Math.round(db+15)));save();fill();
+  S.limit=Math.max(45,Math.min(95,Math.round(db+5)));save();fill();
   $('calBtn').disabled=false;
-  $('calTxt').textContent='Ticho ve třídě: '+Math.round(db)+' dB. Limit nastaven na '+S.limit+' dB.';
+  $('calTxt').textContent='Tvůj hlas: '+Math.round(db)+' dB. Limit nastaven na '+S.limit+' dB.';
 }
 
 $('openSet').addEventListener('click',()=>{fill();$('set').classList.remove('hidden')});
@@ -406,7 +454,7 @@ $('go').addEventListener('click',async()=>{
   b.disabled=false;b.textContent='Spustit měření';
 });
 $('resBtn').addEventListener('click',()=>start());
-$('resetBtn').addEventListener('click',()=>{count=0;loudTotal=0;runTime=0;hist.length=0;ui();draw()});
+$('resetBtn').addEventListener('click',()=>{count=0;streak=0;loudTotal=0;runTime=0;hist.length=0;ui();draw()});
 
 fill();
 requestAnimationFrame(loop);
