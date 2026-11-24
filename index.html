@@ -49,7 +49,7 @@ ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
 .hold small{color:var(--mute);font-size:15px;display:flex;justify-content:space-between;gap:8px}
 .hold small span:last-child{white-space:nowrap}
 .bar{height:14px;border-radius:99px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
-.bar i{display:block;height:100%;width:0;background:var(--acc);border-radius:99px}
+.bar i{display:block;height:100%;width:100%;background:var(--acc);border-radius:99px;transform:translateX(-100%);will-change:transform}
 .fig{position:relative;height:110px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .fig canvas{position:absolute;inset:0;width:100%;height:100%}
 .fig span{position:absolute;left:10px;top:6px;font-size:13px;color:var(--mute)}
@@ -61,11 +61,14 @@ ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
 @media (orientation:landscape) and (min-width:700px){#app{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center}.top{grid-column:1/-1}}
 /* upozornění */
 #alarm{position:fixed;inset:0;z-index:20;background:var(--bad);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
-  padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));text-align:center;animation:pulse 1.2s ease-in-out infinite alternate;cursor:pointer}
+  padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));text-align:center;cursor:pointer}
+/* pulzování jen přes průhlednost vrstvy = běží na GPU, nepřekresluje celou obrazovku */
+#alarm::before{content:"";position:absolute;inset:0;background:#000;opacity:0;animation:pulse 1.2s ease-in-out infinite alternate;will-change:opacity;pointer-events:none}
+#alarm>*{position:relative}
 #alarm h2{font-size:clamp(44px,13vw,140px);line-height:1.02;margin:0;text-wrap:balance;overflow-wrap:anywhere}
 #alarm p{margin:0;font-size:20px;opacity:.9}
-@keyframes pulse{from{background:#ff3b30}to{background:#b8160c}}
-@media (prefers-reduced-motion:reduce){#alarm{animation:none}}
+@keyframes pulse{from{opacity:0}to{opacity:.3}}
+@media (prefers-reduced-motion:reduce){#alarm::before{animation:none}}
 #alarm .step{font-size:20px;font-weight:700;opacity:.95}
 /* písemka: klidný „papír", žádné blikání */
 #exam{position:fixed;inset:0;z-index:22;background:#fbfaf7;color:#16181b;display:flex;flex-direction:column;justify-content:center;gap:18px;cursor:pointer;
@@ -363,22 +366,33 @@ function loop(t){
     else if(over&&t-lastBuzz>=3000)buzz(t);
   }
   histAcc+=level;histN++;
-  if(t-histT>=250){hist.push(histAcc/histN);histAcc=0;histN=0;histT=t;if(hist.length>HIST_MAX)hist.shift();draw()}
+  if(t-histT>=250){hist.push(histAcc/histN);histAcc=0;histN=0;histT=t;if(hist.length>HIST_MAX)hist.shift()}
+  frame(t);
   if(t-uiT>=120){uiT=t;ui()}
 }
 
+/* každý snímek: ručička, číslo, lišta a graf (plynulé) */
+const numEl=$('num'),aDbEl=$('aDb'),arcEl=$('arc'),barEl=$('holdBar');
+let shownNum=null,shownArc=-1,shownBar=-1,bodyState='';
+function frame(t){
+  if(shownNum===null||Math.abs(level-shownNum)>0.6){shownNum=Math.round(level);numEl.textContent=shownNum;aDbEl.textContent=shownNum}
+  const a=frac(level)*100;
+  if(Math.abs(a-shownArc)>0.02){shownArc=a;arcEl.setAttribute('stroke-dasharray',a.toFixed(2)+' 100')}
+  const p=alarmOn?100:loud/S.hold*100;
+  if(Math.abs(p-shownBar)>0.05){shownBar=p;barEl.style.transform='translateX('+(p-100).toFixed(2)+'%)'}
+  draw(t);
+}
+/* texty stačí ~8× za sekundu a mění se jen když je potřeba */
+function setText(id,v){const e=$(id);v=String(v);if(e.textContent!==v)e.textContent=v}
 function ui(){
   const st=level>=S.limit?'bad':level>=S.limit-6?'warn':'ok';
-  document.body.className=st==='ok'?'':st;
-  const r=Math.round(level);
-  $('num').textContent=r;$('aDb').textContent=r;
-  $('state').textContent=calib?'Měřím tvůj hlas…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid';
-  $('arc').setAttribute('stroke-dasharray',(frac(level)*100).toFixed(2)+' 100');
-  $('holdBar').style.width=(alarmOn?100:loud/S.hold*100).toFixed(1)+'%';
-  $('holdTxt').textContent=alarmOn?'Upozornění běží':loud>0?'Upozornění za '+Math.max(0,S.hold-loud).toFixed(1)+' s':'Pod limitem';
-  $('sCount').textContent=S.exam?streak+' / '+S.examN:count;
-  $('sCountL').textContent=S.exam?'do písemky':'upozornění';
-  $('sLoud').textContent=fmt(loudTotal);$('sTime').textContent=fmt(runTime);
+  const cls=st==='ok'?'':st;
+  if(cls!==bodyState){bodyState=cls;document.body.className=cls}
+  setText('state',calib?'Měřím tvůj hlas…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid');
+  setText('holdTxt',alarmOn?'Upozornění běží':loud>0?'Upozornění za '+Math.max(0,S.hold-loud).toFixed(1)+' s':'Pod limitem');
+  setText('sCount',S.exam?streak+' / '+S.examN:count);
+  setText('sCountL',S.exam?'do písemky':'upozornění');
+  setText('sLoud',fmt(loudTotal));setText('sTime',fmt(runTime));
 }
 
 function tick(){
@@ -388,22 +402,30 @@ function tick(){
   $('limTxt').textContent='Limit '+S.limit+' dB';
 }
 
-const cv=$('cv');
-function draw(){
-  const W=cv.clientWidth,H=cv.clientHeight,d=window.devicePixelRatio||1;
-  if(!W||!H)return;
-  if(cv.width!==Math.round(W*d)||cv.height!==Math.round(H*d)){cv.width=Math.round(W*d);cv.height=Math.round(H*d)}
-  const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);g.clearRect(0,0,W,H);
+/* graf: rozměry se čtou jen při změně velikosti, kreslí se každý snímek a plynule posouvá */
+const cv=$('cv'),g=cv.getContext('2d');
+let cw=0,ch=0,dpr=1;
+function draw(t){
+  if(!cw||!ch)return;
+  if(t===undefined)t=performance.now();
+  const W=cw,H=ch;
+  g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
   const y=v=>H-8-frac(v)*(H-32);
   g.strokeStyle='#ff3b30';g.lineWidth=1.5;g.setLineDash([6,5]);
   g.beginPath();g.moveTo(0,y(S.limit));g.lineTo(W,y(S.limit));g.stroke();g.setLineDash([]);
-  if(hist.length<2)return;
-  const step=W/(HIST_MAX-1);
+  const n=hist.length;
+  if(!n)return;
+  const step=W/(HIST_MAX-1),f=running?Math.min(1,Math.max(0,(t-histT)/250)):0;
   g.beginPath();
-  hist.forEach((v,i)=>{const x=W-(hist.length-1-i)*step;i?g.lineTo(x,y(v)):g.moveTo(x,y(v))});
+  for(let i=0;i<n;i++){const x=W-(n-1-i+f)*step,yy=y(hist[i]);i?g.lineTo(x,yy):g.moveTo(x,yy)}
+  if(running)g.lineTo(W,y(level));
   g.strokeStyle='#f3f5f7';g.lineWidth=2;g.lineJoin='round';g.stroke();
 }
-const ro=new ResizeObserver(draw);ro.observe(cv);
+function sizeCanvas(){
+  dpr=window.devicePixelRatio||1;cw=cv.clientWidth;ch=cv.clientHeight;
+  cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);draw();
+}
+const ro=new ResizeObserver(sizeCanvas);ro.observe(cv);
 
 function fill(){
   $('fLimit').value=S.limit;$('fHold').value=S.hold;$('fMsg').value=S.msg;
@@ -445,7 +467,7 @@ $('openSet').addEventListener('click',()=>{fill();$('set').classList.remove('hid
 $('closeSet').addEventListener('click',()=>$('set').classList.add('hidden'));
 $('set').addEventListener('click',e=>{if(e.target===$('set'))$('set').classList.add('hidden')});
 $('pause').addEventListener('click',async()=>{
-  if(running){stopMic();$('pause').textContent='Pokračovat';$('state').textContent='Pozastaveno';document.body.className=''}
+  if(running){stopMic();$('pause').textContent='Pokračovat';$('state').textContent='Pozastaveno';document.body.className='';bodyState=''}
   else await start();
 });
 $('go').addEventListener('click',async()=>{
