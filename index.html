@@ -48,8 +48,12 @@ h1{font-size:46px;line-height:1.05;margin:0;text-align:center}
 .steps li:last-child{border-bottom:0}
 .steps svg{color:var(--ok);margin-top:2px}
 .err{background:#3a1414;border:1px solid #6b2121;color:#ffd7d4;padding:14px 16px;border-radius:14px}
-.priv{display:flex;gap:10px;align-items:flex-start;justify-content:center;text-align:left}
-.priv svg{width:18px;height:18px;color:var(--mute);margin-top:1px}
+.privacy{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:18px;background:#10231a;border:1px solid #1f4a33}
+.privacy svg{width:24px;height:24px;color:var(--ok);margin-top:2px}
+.privacy b{display:block;font-size:18px}
+.privacy span{display:block;color:#b9c6be;font-size:15px;margin-top:2px}
+.privline{display:inline-flex;align-items:center;gap:6px;margin:2px 0 0;font-size:14px;color:var(--mute)}
+.privline svg{width:15px;height:15px}
 
 /* měření */
 #app{max-width:1100px;margin:0 auto;padding:10px 16px 18px;display:grid;gap:14px}
@@ -183,7 +187,8 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
   </ul>
   <div id="err" class="err hidden" role="alert"></div>
   <button id="go" class="primary">Spustit měření</button>
-  <p class="note priv"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Nic se nenahrává ani neodesílá. Telefon jen průběžně počítá hlasitost.</span></p>
+  <div class="privacy" role="note"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    <div><b>Nenahrává zvuk, měří jen hlasitost</b><span>Aplikace z mikrofonu počítá jen číslo v decibelech. Zvuk ani řeč se nikam neukládá ani neodesílá. Oranžová tečka na iPhonu jen ukazuje, že je mikrofon zapnutý.</span></div></div>
 </main>
 
 <div id="app" class="hidden">
@@ -207,6 +212,7 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
       <div class="read"><div id="num" class="num">--</div><div class="unit">dB (přibližně)</div></div>
     </div>
     <p id="state" class="state">Klid</p>
+    <p class="privline"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Nenahrává zvuk, měří jen hlasitost</p>
   </div>
   <div class="side">
     <div class="card hold">
