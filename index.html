@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111316">
+<meta name="theme-color" content="#0c0e11">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Tichoměr</title>
@@ -11,65 +11,112 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#111316;--panel:#1b1e23;--line:#2c3138;--ink:#f3f5f7;--mute:#9aa3ad;--ok:#2fbf71;--warn:#f5a524;--bad:#ff3b30;--acc:var(--ok)}
+/*
+VOICE: klidný nástroj na lavici, čitelný z dálky
+IDEA: ručkový hlukoměr / semafor třídy
+PICTURE: velký oblouk s barevnými zónami a živým číslem
+COLOUR+TYPE: tmavé pozadí, zelená/oranžová/červená podle stavu; Atkinson Hyperlegible
+LAYOUT: na výšku pod sebou, na šířku dva sloupce
+*/
+:root{--bg:#0c0e11;--panel:#15181d;--panel2:#1c2027;--line:#262b33;--ink:#f2f4f6;--mute:#8e98a3;--ok:#34c77b;--warn:#f5a524;--bad:#ff453a;--acc:var(--ok)}
 *{box-sizing:border-box;min-width:0}
 html,body{min-height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 "Atkinson Hyperlegible",system-ui,-apple-system,sans-serif;-webkit-text-size-adjust:100%;overflow-x:clip;
-  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);-webkit-tap-highlight-color:transparent}
 body.warn{--acc:var(--warn)}body.bad{--acc:var(--bad)}
 .hidden{display:none!important}
-button{font:inherit;color:inherit;border-radius:14px;min-height:48px;padding:0 18px;cursor:pointer;background:var(--panel);border:1px solid var(--line)}
+/* jemná záře podle stavu (mění se jen při změně stavu) */
+.glow{position:fixed;left:50%;top:-38vh;width:150vw;height:95vh;transform:translateX(-50%);background:radial-gradient(closest-side,currentColor,transparent);
+  color:var(--acc);opacity:.13;pointer-events:none;transition:color .6s;z-index:0}
+#intro,#app{position:relative;z-index:1}
+svg.i{width:20px;height:20px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button{font:inherit;color:inherit;border-radius:16px;min-height:50px;padding:0 16px;cursor:pointer;background:var(--panel2);border:1px solid var(--line);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:background .15s,transform .1s}
+button:active{transform:scale(.98)}
 button:disabled{opacity:.6}
 button:focus-visible,input:focus-visible{outline:3px solid #7cc4ff;outline-offset:2px}
-.primary{background:var(--ok);color:#06210f;font-weight:700;border:0;font-size:20px;min-height:60px;width:100%}
-.btns .primary{font-size:17px;min-height:48px}
-/* úvod */
-#intro{max-width:520px;margin:0 auto;padding:32px 20px;display:flex;flex-direction:column;gap:20px;min-height:100vh;justify-content:center}
-h1{font-size:44px;line-height:1.05;margin:0}
-.lead{color:var(--mute);margin:0;font-size:18px}
-ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
-.err{background:#3a1414;border:1px solid #6b2121;color:#ffd7d4;padding:14px 16px;border-radius:12px}
+.primary{background:var(--ok);color:#052113;font-weight:700;border:0;font-size:19px;min-height:60px;width:100%}
 .note{color:var(--mute);font-size:14px;margin:0}
+
+/* úvod */
+#intro{max-width:480px;margin:0 auto;padding:28px 22px 32px;display:flex;flex-direction:column;gap:22px;min-height:100vh;justify-content:center}
+.hero{width:min(260px,70vw);margin:0 auto -6px;display:block}
+h1{font-size:46px;line-height:1.05;margin:0;text-align:center}
+.lead{color:var(--mute);margin:-8px 0 0;font-size:18px;text-align:center;text-wrap:balance}
+.steps{list-style:none;margin:0;padding:6px 16px;background:var(--panel);border:1px solid var(--line);border-radius:18px}
+.steps li{display:flex;gap:14px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);color:#c9d0d7}
+.steps li:last-child{border-bottom:0}
+.steps svg{color:var(--ok);margin-top:2px}
+.err{background:#3a1414;border:1px solid #6b2121;color:#ffd7d4;padding:14px 16px;border-radius:14px}
+.priv{display:flex;gap:10px;align-items:flex-start;justify-content:center;text-align:left}
+.priv svg{width:18px;height:18px;color:var(--mute);margin-top:1px}
+
 /* měření */
-#app{max-width:1100px;margin:0 auto;padding:12px 16px 20px;display:grid;gap:14px}
+#app{max-width:1100px;margin:0 auto;padding:10px 16px 18px;display:grid;gap:14px}
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.top b{font-size:20px}
+.brand{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:700}
+.brand svg{width:26px;height:26px;color:var(--acc);transition:color .3s}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
-.chip{font-size:13px;padding:4px 10px;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--mute)}
-.chip.on{color:var(--ink)}.chip.bad{color:#ffb4ae;border-color:#6b2121}
-.gauge{position:relative;width:100%;max-width:520px;margin:0 auto}
-.gauge svg{display:block;width:100%;height:auto}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:5px 11px;border-radius:99px;background:var(--panel);border:1px solid var(--line);color:var(--mute)}
+.chip::before{content:"";width:7px;height:7px;border-radius:50%;background:#59616b}
+.chip.on{color:var(--ink)}.chip.on::before{background:var(--ok)}
+.chip.bad{color:#ffb4ae;border-color:#5a2222}.chip.bad::before{background:var(--bad)}
+.meter{display:grid;justify-items:center;gap:6px}
+.gauge{position:relative;width:100%;max-width:500px}
+.gauge svg{display:block;width:100%;height:auto;overflow:visible}
 #arc{transition:stroke .3s}
-.read{position:absolute;left:0;right:0;bottom:2%;text-align:center;line-height:1}
-.num{font-size:clamp(64px,22vw,128px);font-weight:700;font-variant-numeric:tabular-nums;color:var(--acc);transition:color .3s}
-.unit{font-size:15px;color:var(--mute);margin-top:6px}
-.state{text-align:center;font-size:clamp(26px,7vw,40px);font-weight:700;color:var(--acc);margin:4px 0 0}
-.side{display:grid;gap:14px;align-content:start}
-.hold{display:grid;gap:6px}
+.read{position:absolute;left:0;right:0;bottom:9%;text-align:center;line-height:1}
+.num{font-size:clamp(68px,23vw,132px);font-weight:700;font-variant-numeric:tabular-nums;color:var(--acc);transition:color .3s;letter-spacing:-.02em}
+.unit{font-size:15px;color:var(--mute);margin-top:4px}
+.state{display:inline-flex;align-items:center;gap:10px;margin:0;padding:8px 18px 8px 14px;border-radius:99px;font-size:clamp(22px,6vw,32px);font-weight:700;
+  color:var(--acc);background:var(--panel);border:1px solid var(--line);transition:color .3s}
+.state::before{content:"";width:12px;height:12px;border-radius:50%;background:currentColor}
+.side{display:grid;gap:12px;align-content:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.hold{display:grid;gap:10px}
 .hold small{color:var(--mute);font-size:15px;display:flex;justify-content:space-between;gap:8px}
+.hold small span:first-child{color:var(--ink)}
 .hold small span:last-child{white-space:nowrap}
-.bar{height:14px;border-radius:99px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+.bar{position:relative;height:16px;border-radius:99px;background:#0f1216;overflow:hidden}
 .bar i{display:block;height:100%;width:100%;background:var(--acc);border-radius:99px;transform:translateX(-100%);will-change:transform}
-.fig{position:relative;height:110px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.bar::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--segs,5) - 3px),var(--panel) calc(100% / var(--segs,5) - 3px) calc(100% / var(--segs,5)))}
+.fig{position:relative;height:118px;padding:0;overflow:hidden}
 .fig canvas{position:absolute;inset:0;width:100%;height:100%}
-.fig span{position:absolute;left:10px;top:6px;font-size:13px;color:var(--mute)}
-.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
-.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
-.stat b{display:block;font-size:24px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.stat small{color:var(--mute);font-size:13px}
-.btns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-@media (orientation:landscape) and (min-width:700px){#app{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center}.top{grid-column:1/-1}}
+.fig span{position:absolute;left:14px;top:9px;font-size:13px;color:var(--mute)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat{padding:12px 14px}
+.stat small{display:block;color:var(--mute);font-size:13px;line-height:1.3}
+.stat b{display:block;font-size:26px;line-height:1.15;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.btns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.btns button{flex-direction:column;gap:3px;min-height:64px;font-size:14px;padding:6px 8px}
+.btns svg.i{width:22px;height:22px}
+@media (orientation:landscape) and (min-width:700px){#app{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:center}.top{grid-column:1/-1}
+  .num{font-size:clamp(56px,11vw,110px)}}
+@media (orientation:landscape) and (max-height:500px){
+  #app{gap:10px;padding-top:6px}.side{gap:8px}.card{padding:10px 14px}
+  .gauge{max-width:min(500px,calc((100vh - 150px) * 1.7))}
+  .fig{height:80px}.stat{padding:8px 12px}.stat b{font-size:21px}.btns button{min-height:50px;flex-direction:row}
+  .state{font-size:22px;padding:5px 14px 5px 12px}}
+
+/* zhasnutý displej: vypadá vypnutý, ale měří dál */
+#black{position:fixed;inset:0;z-index:15;background:#000;display:flex;align-items:flex-end;justify-content:center;padding:0 24px max(40px,env(safe-area-inset-bottom));cursor:pointer}
+#black p{margin:0;color:#6b737c;font-size:15px;text-align:center;opacity:0}
+#black.show p{animation:hint 5s ease forwards}
+@keyframes hint{0%,55%{opacity:1}100%{opacity:0}}
+
 /* upozornění */
-#alarm{position:fixed;inset:0;z-index:20;background:var(--bad);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+#alarm{position:fixed;inset:0;z-index:20;background:var(--bad);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
   padding:max(24px,env(safe-area-inset-top)) 24px max(24px,env(safe-area-inset-bottom));text-align:center;cursor:pointer}
-/* pulzování jen přes průhlednost vrstvy = běží na GPU, nepřekresluje celou obrazovku */
+/* pulzování jen přes průhlednost vrstvy = běží na GPU */
 #alarm::before{content:"";position:absolute;inset:0;background:#000;opacity:0;animation:pulse 1.2s ease-in-out infinite alternate;will-change:opacity;pointer-events:none}
 #alarm>*{position:relative}
 #alarm h2{font-size:clamp(44px,13vw,140px);line-height:1.02;margin:0;text-wrap:balance;overflow-wrap:anywhere}
-#alarm p{margin:0;font-size:20px;opacity:.9}
-@keyframes pulse{from{opacity:0}to{opacity:.3}}
+#alarm p{margin:0;font-size:19px;opacity:.9}
+#alarm .step{font-size:18px;font-weight:700;padding:6px 16px;border-radius:99px;background:rgba(0,0,0,.18)}
+#alarm .step:empty{display:none}
+@keyframes pulse{from{opacity:0}to{opacity:.28}}
 @media (prefers-reduced-motion:reduce){#alarm::before{animation:none}}
-#alarm .step{font-size:20px;font-weight:700;opacity:.95}
 /* písemka: klidný „papír", žádné blikání */
 #exam{position:fixed;inset:0;z-index:22;background:#fbfaf7;color:#16181b;display:flex;flex-direction:column;justify-content:center;gap:18px;cursor:pointer;
   padding:max(28px,env(safe-area-inset-top)) clamp(28px,8vw,80px) max(28px,env(safe-area-inset-bottom)) clamp(44px,12vw,120px);
@@ -78,72 +125,109 @@ ul.tips{margin:0;padding-left:20px;color:var(--mute)}ul.tips li{margin:6px 0}
 #exam small{font-size:17px;color:#5b6470}
 #exam h2{font-size:clamp(48px,14vw,150px);line-height:1;margin:0;text-wrap:balance;overflow-wrap:anywhere}
 #exam p{margin:0;font-size:17px;color:#5b6470}
-#resume{position:fixed;inset:0;z-index:25;background:rgba(17,19,22,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
-#resume h2{margin:0;font-size:30px}
-#resume .primary{max-width:420px}
+#resume{position:fixed;inset:0;z-index:25;background:rgba(12,14,17,.97);display:flex;align-items:center;justify-content:center;padding:24px}
+#resume .card{max-width:420px;width:100%;display:grid;gap:14px;text-align:center;padding:26px 22px}
+#resume h2{margin:0;font-size:28px}
+
 /* nastavení */
-.sheetwrap{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center}
-.sheet{background:#191c21;border:1px solid var(--line);border-radius:20px 20px 0 0;width:100%;max-width:560px;max-height:88vh;overflow:auto;
-  padding:20px 20px calc(20px + env(safe-area-inset-bottom));display:grid;gap:18px}
+.sheetwrap{position:fixed;inset:0;z-index:30;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#111418;border:1px solid var(--line);border-bottom:0;border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:90vh;overflow:auto;
+  padding:10px 18px calc(18px + env(safe-area-inset-bottom));display:grid;gap:14px;animation:up .22s ease}
+@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.handle{width:42px;height:5px;border-radius:99px;background:#39404a;margin:0 auto 2px}
 .sheet h3{margin:0;font-size:24px}
-.field{display:grid;gap:6px}
+.group{display:grid;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.group h4{margin:0;font-size:13px;color:var(--mute);font-weight:400}
+.field{display:grid;gap:4px}
 .field label{display:flex;justify-content:space-between;gap:10px;font-weight:700}
-.field output{font-weight:400;color:var(--mute);white-space:nowrap}
+.field output{font-weight:700;color:var(--ok);white-space:nowrap;font-variant-numeric:tabular-nums}
 .field small{color:var(--mute);font-size:14px}
 input[type=range]{width:100%;height:44px;margin:0;accent-color:var(--ok)}
 input:disabled{opacity:.45}
-input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:#0f1114;color:var(--ink)}
-.check{display:flex;gap:12px;align-items:flex-start;min-height:44px;cursor:pointer}
-.check input{width:24px;height:24px;margin:2px 0 0;accent-color:var(--ok);flex:none}
+input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:#0c0e11;color:var(--ink)}
+/* přepínače místo zaškrtávátek */
+.check{display:flex;gap:14px;align-items:center;justify-content:space-between;min-height:44px;cursor:pointer}
+.check span{display:grid;gap:2px;font-weight:700}
+.check small{font-weight:400}
+.check input{appearance:none;-webkit-appearance:none;flex:none;width:52px;height:32px;margin:0;border-radius:99px;background:#39404a;position:relative;cursor:pointer;transition:background .2s}
+.check input::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.check input:checked{background:var(--ok)}
+.check input:checked::after{transform:translateX(20px)}
 .calib{display:grid;gap:8px}
+.calib button{background:#22303a;border-color:#2e4250}
+.sheet .btns2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.sheet .btns2 .primary{font-size:17px;min-height:50px}
 </style>
 </head>
 <body>
+<div class="glow" aria-hidden="true"></div>
 
 <main id="intro">
+  <svg class="hero" viewBox="0 0 300 180" aria-hidden="true">
+    <path d="M32 152A118 118 0 0 1 268 152" fill="none" stroke="#1c2027" stroke-width="22" stroke-linecap="round"/>
+    <path d="M32 152A118 118 0 0 1 268 152" fill="none" stroke="#34c77b" stroke-width="22" stroke-linecap="round" pathLength="100" stroke-dasharray="40 100"/>
+    <path d="M12 152A138 138 0 0 1 138.6 14.5" fill="none" stroke="#34c77b" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+    <path d="M149 14A138 138 0 0 1 175.6 16.4" fill="none" stroke="#f5a524" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+    <path d="M185.8 18.7A138 138 0 0 1 288 152" fill="none" stroke="#ff453a" stroke-width="4" stroke-linecap="round" opacity=".75"/>
+    <line x1="172.3" y1="54.5" x2="182.5" y2="9.7" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+    <text x="150" y="146" text-anchor="middle" font-size="58" font-weight="700" fill="#34c77b" font-family="Atkinson Hyperlegible,system-ui,sans-serif">58</text>
+  </svg>
   <h1>Tichoměr</h1>
-  <p class="lead">Hlídá hluk ve třídě. Když je hlučno déle než pár sekund, na displeji se objeví velké upozornění.</p>
-  <ul class="tips">
-    <li>Polož telefon displejem nahoru na první lavici.</li>
-    <li>Po spuštění povol přístup k mikrofonu.</li>
-    <li>V nastavení nech aplikaci změřit tvůj hlas při výkladu. Limit se nastaví kousek nad něj.</li>
-    <li>Po 5 upozorněních za sebou se ukáže písemka.</li>
+  <p class="lead">Hlídá hluk ve třídě. Když je hlučno 5 sekund v kuse, na displeji se objeví upozornění.</p>
+  <ul class="steps">
+    <li><svg class="i" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg><span>Polož telefon displejem nahoru na první lavici a povol mikrofon.</span></li>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>V nastavení nech změřit tvůj hlas při výkladu. Limit se nastaví kousek nad něj.</span></li>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Tlačítkem Zhasnout displej zčerná a telefon vypadá vypnutý. Měří ale dál.</span></li>
+    <li><svg class="i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span>Po 5 upozorněních za sebou se ukáže písemka.</span></li>
   </ul>
   <div id="err" class="err hidden" role="alert"></div>
   <button id="go" class="primary">Spustit měření</button>
-  <p class="note">Nic se nenahrává ani neodesílá. Telefon jen průběžně počítá hlasitost.</p>
+  <p class="note priv"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span>Nic se nenahrává ani neodesílá. Telefon jen průběžně počítá hlasitost.</span></p>
 </main>
 
 <div id="app" class="hidden">
   <div class="top">
-    <b>Tichoměr</b>
+    <div class="brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M3 17a9 9 0 0 1 18 0"/><path d="M12 17l4-6"/></svg>Tichoměr</div>
     <div class="chips"><span id="cMic" class="chip on">Mikrofon zapnutý</span><span id="cWake" class="chip">Displej</span></div>
   </div>
-  <div>
+  <div class="meter">
     <div class="gauge">
-      <svg viewBox="0 0 300 165" aria-hidden="true">
-        <path d="M30 150A120 120 0 0 1 270 150" fill="none" stroke="#2c3138" stroke-width="22" stroke-linecap="round" pathLength="100"/>
-        <path id="arc" d="M30 150A120 120 0 0 1 270 150" fill="none" stroke="var(--acc)" stroke-width="22" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
-        <line id="tick" x1="150" y1="150" x2="150" y2="150" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+      <svg viewBox="0 0 300 178" aria-hidden="true">
+        <g id="ticks" stroke="#3a414b" stroke-width="2" stroke-linecap="round"></g>
+        <path id="zOk" fill="none" stroke="#34c77b" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+        <path id="zWarn" fill="none" stroke="#f5a524" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+        <path id="zBad" fill="none" stroke="#ff453a" stroke-width="4" stroke-linecap="round" opacity=".75"/>
+        <path d="M32 152A118 118 0 0 1 268 152" fill="none" stroke="#1c2027" stroke-width="22" stroke-linecap="round"/>
+        <path id="arc" d="M32 152A118 118 0 0 1 268 152" fill="none" stroke="var(--acc)" stroke-width="22" stroke-linecap="round" pathLength="100" stroke-dasharray="0 100"/>
+        <line id="tick" x1="150" y1="152" x2="150" y2="152" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
+        <text x="32" y="176" text-anchor="middle" font-size="12" fill="#8e98a3">30</text>
+        <text x="268" y="176" text-anchor="middle" font-size="12" fill="#8e98a3">100</text>
       </svg>
       <div class="read"><div id="num" class="num">--</div><div class="unit">dB (přibližně)</div></div>
     </div>
     <p id="state" class="state">Klid</p>
   </div>
   <div class="side">
-    <div class="hold">
-      <small><span id="holdTxt">Pod limitem</span><span id="limTxt">Limit 65 dB</span></small>
-      <div class="bar"><i id="holdBar"></i></div>
+    <div class="card hold">
+      <small><span id="holdTxt">Pod limitem</span><span id="limTxt">Limit 70 dB</span></small>
+      <div class="bar" id="barBox"><i id="holdBar"></i></div>
     </div>
-    <div class="fig"><canvas id="cv"></canvas><span>Posledních 60 s</span></div>
+    <div class="card fig"><canvas id="cv"></canvas><span>Posledních 60 s</span></div>
     <div class="stats">
-      <div class="stat"><b id="sCount">0</b><small id="sCountL">upozornění</small></div>
-      <div class="stat"><b id="sLoud">0:00</b><small>nad limitem</small></div>
-      <div class="stat"><b id="sTime">0:00</b><small>měří</small></div>
+      <div class="card stat"><small id="sCountL">upozornění</small><b id="sCount">0</b></div>
+      <div class="card stat"><small>nad limitem</small><b id="sLoud">0:00</b></div>
+      <div class="card stat"><small>měří</small><b id="sTime">0:00</b></div>
     </div>
-    <div class="btns"><button id="pause">Pozastavit</button><button id="openSet">Nastavení</button></div>
+    <div class="btns">
+      <button id="pause"><svg class="i" viewBox="0 0 24 24"><path id="pauseIco" d="M9 5v14M15 5v14"/></svg><span id="pauseL">Pozastavit</span></button>
+      <button id="dim"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Zhasnout</span></button>
+      <button id="openSet"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Nastavení</span></button>
+    </div>
   </div>
 </div>
+
+<div id="black" class="hidden"><p>Měřím dál. Displej se rozsvítí při upozornění.<br>Klepni pro rozsvícení.</p></div>
 
 <div id="alarm" class="hidden" role="alert">
   <span id="aStep" class="step"></span>
@@ -158,48 +242,63 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
 </div>
 
 <div id="resume" class="hidden">
-  <h2>Měření se přerušilo</h2>
-  <p id="resNote" class="note">iPhone vypne mikrofon, když přepneš do jiné aplikace nebo zamkneš displej.</p>
-  <button id="resBtn" class="primary">Pokračovat v měření</button>
+  <div class="card">
+    <h2>Měření se přerušilo</h2>
+    <p id="resNote" class="note">iPhone vypne mikrofon, když přepneš do jiné aplikace nebo zamkneš displej. Místo zamykání použij tlačítko Zhasnout.</p>
+    <button id="resBtn" class="primary">Pokračovat v měření</button>
+  </div>
 </div>
 
 <div id="set" class="sheetwrap hidden">
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="setH">
+    <div class="handle"></div>
     <h3 id="setH">Nastavení</h3>
-    <div class="field">
-      <label for="fLimit">Limit hluku <output id="oLimit"></output></label>
-      <input id="fLimit" type="range" min="40" max="95" step="1">
+    <div class="group">
+      <h4>Hlasitost</h4>
+      <div class="field">
+        <label for="fLimit">Limit hluku <output id="oLimit"></output></label>
+        <input id="fLimit" type="range" min="40" max="95" step="1">
+      </div>
+      <div class="calib">
+        <button id="calBtn"><svg class="i" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>Změřit hlas učitele (5 s)</button>
+        <p id="calTxt" class="note">Mluv 5 sekund normálně jako při výkladu, třída je potichu. Limit se nastaví na tvůj hlas + 5 dB.</p>
+      </div>
+      <div class="field">
+        <label for="fHold">Jak dlouho musí hluk trvat <output id="oHold"></output></label>
+        <input id="fHold" type="range" min="1" max="10" step="1">
+        <small>Hluk musí trvat v kuse. Když klesne pod limit, odpočet začne znovu. Krátký zvuk (spadlé pouzdro, bouchnutí dveří) upozornění nespustí.</small>
+      </div>
     </div>
-    <div class="calib">
-      <button id="calBtn">Změřit hlas učitele (5 s)</button>
-      <p id="calTxt" class="note">Mluv 5 sekund normálně jako při výkladu, třída je potichu. Limit se nastaví na tvůj hlas + 5 dB.</p>
+    <div class="group">
+      <h4>Upozornění</h4>
+      <div class="field">
+        <label for="fMsg">Text upozornění</label>
+        <input id="fMsg" type="text" maxlength="60">
+      </div>
+      <label class="check"><span>Vibrovat<small class="note">Funguje jen na Androidu. iPhone webovým stránkám vibrovat nedovolí.</small></span><input id="fVib" type="checkbox"></label>
+      <label class="check"><span>Pípnout při upozornění</span><input id="fSnd" type="checkbox"></label>
     </div>
-    <div class="field">
-      <label for="fHold">Jak dlouho musí hluk trvat <output id="oHold"></output></label>
-      <input id="fHold" type="range" min="1" max="10" step="1">
-      <small>Hluk musí trvat v kuse. Když klesne pod limit, odpočet začne znovu. Krátký zvuk (spadlé pouzdro, bouchnutí dveří) upozornění nespustí.
+    <div class="group">
+      <h4>Písemka</h4>
+      <label class="check"><span>Písemka po opakovaném hluku<small class="note">Počítadlo se vynuluje po 10 minutách bez upozornění.</small></span><input id="fExam" type="checkbox"></label>
+      <div class="field">
+        <label for="fExamN">Po kolika upozorněních za sebou <output id="oExamN"></output></label>
+        <input id="fExamN" type="range" min="3" max="10" step="1">
+      </div>
+      <div class="field">
+        <label for="fExamMsg">Text písemky</label>
+        <input id="fExamMsg" type="text" maxlength="40">
+      </div>
     </div>
-    <div class="field">
-      <label for="fMsg">Text upozornění</label>
-      <input id="fMsg" type="text" maxlength="60">
+    <div class="group">
+      <h4>Ostatní</h4>
+      <div class="field">
+        <label for="fCorr">Korekce měření <output id="oCorr"></output></label>
+        <input id="fCorr" type="range" min="-20" max="20" step="1">
+        <small>Telefon není přesný hlukoměr. Pokud máš skutečný hlukoměr, posuň údaj, aby seděl.</small>
+      </div>
     </div>
-    <label class="check"><input id="fExam" type="checkbox"><span>Písemka po opakovaném hluku<br><small class="note">Počítadlo se vynuluje po 10 minutách bez upozornění.</small></span></label>
-    <div class="field">
-      <label for="fExamN">Po kolika upozorněních za sebou <output id="oExamN"></output></label>
-      <input id="fExamN" type="range" min="3" max="10" step="1">
-    </div>
-    <div class="field">
-      <label for="fExamMsg">Text písemky</label>
-      <input id="fExamMsg" type="text" maxlength="40">
-    </div>
-    <label class="check"><input id="fVib" type="checkbox"><span>Vibrovat<br><small class="note">Funguje jen na Androidu. iPhone webovým stránkám vibrovat nedovolí.</small></span></label>
-    <label class="check"><input id="fSnd" type="checkbox"><span>Pípnout při upozornění</span></label>
-    <div class="field">
-      <label for="fCorr">Korekce měření <output id="oCorr"></output></label>
-      <input id="fCorr" type="range" min="-20" max="20" step="1">
-      <small>Telefon není přesný hlukoměr. Pokud máš skutečný hlukoměr, posuň údaj, aby seděl.</small>
-    </div>
-    <div class="btns"><button id="resetBtn">Vynulovat počítadla</button><button id="closeSet" class="primary">Hotovo</button></div>
+    <div class="btns2"><button id="resetBtn">Vynulovat počítadla</button><button id="closeSet" class="primary">Hotovo</button></div>
   </div>
 </div>
 
@@ -208,6 +307,7 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
 const $=id=>document.getElementById(id);
 const KEY='tichomer-v2',OFFSET=100,MIN=30,MAX=100,RES_NOTE=$('resNote').textContent,STREAK_RESET=600000;
 const DEF={limit:70,hold:5,msg:'Moc hluku! Ztište se, prosím.',vib:true,snd:false,corr:0,exam:true,examN:5,examMsg:'Píšeme písemku.'};
+const COL={'':'#34c77b',warn:'#f5a524',bad:'#ff453a'};
 const S={...DEF};
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
@@ -258,9 +358,13 @@ async function start(){
   stream.getAudioTracks().forEach(t=>t.addEventListener('ended',interrupted));
   running=true;ms=null;qT.length=qE.length=qD.length=0;sumE=sumT=0;
   $('intro').classList.add('hidden');$('app').classList.remove('hidden');$('resume').classList.add('hidden');
-  $('pause').textContent='Pozastavit';$('cMic').textContent='Mikrofon zapnutý';$('cMic').className='chip on';
+  setPause(true);$('cMic').textContent='Mikrofon zapnutý';$('cMic').className='chip on';
   lockScreen();
   return true;
+}
+function setPause(on){
+  $('pauseL').textContent=on?'Pozastavit':'Pokračovat';
+  $('pauseIco').setAttribute('d',on?'M9 5v14M15 5v14':'M8 5l11 7-11 7z');
 }
 
 function stopMic(){
@@ -268,8 +372,8 @@ function stopMic(){
   if(stream)stream.getTracks().forEach(t=>t.stop());
   stream=null;
   if(wake){wake.release().catch(()=>{});wake=null}
-  if(calib){calib=null;$('calBtn').disabled=false;$('calTxt').textContent='Měření ticha se přerušilo. Zkus to znovu.'}
-  endAlarm();
+  if(calib){calib=null;$('calBtn').disabled=false;$('calTxt').textContent='Měření hlasu se přerušilo. Zkus to znovu.'}
+  endAlarm();lightUp();
   $('cMic').textContent='Mikrofon vypnutý';$('cMic').className='chip';
   showWake();
 }
@@ -302,6 +406,15 @@ document.addEventListener('visibilitychange',async()=>{
   try{await ctx.resume()}catch(e){}
   if(ctx.state!=='running')interrupted();
 });
+
+/* zhasnutý režim */
+function blackOut(){
+  if(!running)return;
+  const b=$('black');b.classList.remove('hidden','show');void b.offsetWidth;b.classList.add('show');
+}
+function lightUp(){$('black').classList.add('hidden')}
+$('dim').addEventListener('click',blackOut);
+$('black').addEventListener('click',lightUp);
 
 function startAlarm(now){
   if(now-lastWarn>STREAK_RESET)streak=0;
@@ -376,7 +489,7 @@ function loop(t){
   }
   histAcc+=level;histN++;
   if(t-histT>=250){hist.push(histAcc/histN);histAcc=0;histN=0;histT=t;if(hist.length>HIST_MAX)hist.shift()}
-  frame(t);
+  if($('black').classList.contains('hidden'))frame(t);
   if(t-uiT>=120){uiT=t;ui()}
 }
 
@@ -394,9 +507,11 @@ function frame(t){
 /* texty stačí ~8× za sekundu a mění se jen když je potřeba */
 function setText(id,v){const e=$(id);v=String(v);if(e.textContent!==v)e.textContent=v}
 function ui(){
+  if(!running)return;
   const st=leq>=S.limit?'bad':leq>=S.limit-6?'warn':'ok';
   const cls=st==='ok'?'':st;
   if(cls!==bodyState){bodyState=cls;document.body.className=cls}
+  setText('aDb',Math.round(level));
   setText('state',calib?'Měřím tvůj hlas…':st==='bad'?'Moc hluku':st==='warn'?'Hlasitěji':'Klid');
   setText('holdTxt',alarmOn?'Upozornění běží':loud>0?'Upozornění za '+Math.max(0,S.hold-loud).toFixed(1)+' s':'Pod limitem');
   setText('sCount',S.exam?streak+' / '+S.examN:count);
@@ -404,10 +519,17 @@ function ui(){
   setText('sLoud',fmt(loudTotal));setText('sTime',fmt(runTime));
 }
 
+/* stupnice: ryska limitu, barevné zóny, dílky po 10 dB */
+const CX=150,CY=152;
+const pt=(r,f)=>{const a=Math.PI*(1-f);return[(CX+r*Math.cos(a)).toFixed(1),(CY-r*Math.sin(a)).toFixed(1)]};
+const arcD=(r,f0,f1)=>{const p0=pt(r,f0),p1=pt(r,f1);return'M'+p0[0]+' '+p0[1]+'A'+r+' '+r+' 0 0 1 '+p1[0]+' '+p1[1]};
+(()=>{let h='';for(let db=MIN;db<=MAX;db+=10){const a=pt(96,frac(db)),b=pt(102,frac(db));h+='<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}$('ticks').innerHTML=h})();
 function tick(){
-  const a=Math.PI*(1-frac(S.limit)),L=$('tick');
-  L.setAttribute('x1',(150+104*Math.cos(a)).toFixed(1));L.setAttribute('y1',(150-104*Math.sin(a)).toFixed(1));
-  L.setAttribute('x2',(150+136*Math.cos(a)).toFixed(1));L.setAttribute('y2',(150-136*Math.sin(a)).toFixed(1));
+  const f=frac(S.limit),fw=frac(S.limit-6),gap=0.012,L=$('tick'),a=pt(100,f),b=pt(146,f);
+  L.setAttribute('x1',a[0]);L.setAttribute('y1',a[1]);L.setAttribute('x2',b[0]);L.setAttribute('y2',b[1]);
+  $('zOk').setAttribute('d',fw-gap>0?arcD(138,0,fw-gap):'');
+  $('zWarn').setAttribute('d',f-gap>fw+gap?arcD(138,fw+gap,f-gap):'');
+  $('zBad').setAttribute('d',f+gap<1?arcD(138,f+gap,1):'');
   $('limTxt').textContent='Limit '+S.limit+' dB';
 }
 
@@ -417,18 +539,22 @@ let cw=0,ch=0,dpr=1;
 function draw(t){
   if(!cw||!ch)return;
   if(t===undefined)t=performance.now();
-  const W=cw,H=ch;
+  const W=cw,H=ch,TOP=30;
   g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,W,H);
-  const y=v=>H-8-frac(v)*(H-32);
-  g.strokeStyle='#ff3b30';g.lineWidth=1.5;g.setLineDash([6,5]);
+  const y=v=>H-8-frac(v)*(H-TOP-8);
+  g.strokeStyle='rgba(255,69,58,.8)';g.lineWidth=1.5;g.setLineDash([5,5]);
   g.beginPath();g.moveTo(0,y(S.limit));g.lineTo(W,y(S.limit));g.stroke();g.setLineDash([]);
   const n=hist.length;
   if(!n)return;
-  const step=W/(HIST_MAX-1),f=running?Math.min(1,Math.max(0,(t-histT)/250)):0;
+  const step=W/(HIST_MAX-1),f=running?Math.min(1,Math.max(0,(t-histT)/250)):0,col=COL[bodyState]||COL[''];
   g.beginPath();
-  for(let i=0;i<n;i++){const x=W-(n-1-i+f)*step,yy=y(hist[i]);i?g.lineTo(x,yy):g.moveTo(x,yy)}
+  let x0=0;
+  for(let i=0;i<n;i++){const x=W-(n-1-i+f)*step,yy=y(hist[i]);if(i){g.lineTo(x,yy)}else{x0=x;g.moveTo(x,yy)}}
   if(running)g.lineTo(W,y(level));
-  g.strokeStyle='#f3f5f7';g.lineWidth=2;g.lineJoin='round';g.stroke();
+  g.strokeStyle=col;g.lineWidth=2.5;g.lineJoin='round';g.stroke();
+  g.lineTo(W,H);g.lineTo(x0,H);g.closePath();
+  const gr=g.createLinearGradient(0,TOP,0,H);gr.addColorStop(0,col+'55');gr.addColorStop(1,col+'00');
+  g.fillStyle=gr;g.fill();
 }
 function sizeCanvas(){
   dpr=window.devicePixelRatio||1;cw=cv.clientWidth;ch=cv.clientHeight;
@@ -446,6 +572,7 @@ function out(){
   $('oLimit').textContent=S.limit+' dB';$('oHold').textContent=S.hold+' s';$('oExamN').textContent=S.examN+'×';
   $('fExamN').disabled=$('fExamMsg').disabled=!S.exam;
   $('oCorr').textContent=(S.corr>0?'+':'')+S.corr+' dB';
+  $('barBox').style.setProperty('--segs',S.hold);
   tick();draw();
 }
 $('fLimit').addEventListener('input',e=>{S.limit=+e.target.value;out();save()});
@@ -476,7 +603,7 @@ $('openSet').addEventListener('click',()=>{fill();$('set').classList.remove('hid
 $('closeSet').addEventListener('click',()=>$('set').classList.add('hidden'));
 $('set').addEventListener('click',e=>{if(e.target===$('set'))$('set').classList.add('hidden')});
 $('pause').addEventListener('click',async()=>{
-  if(running){stopMic();$('pause').textContent='Pokračovat';$('state').textContent='Pozastaveno';document.body.className='';bodyState=''}
+  if(running){stopMic();setPause(false);$('state').textContent='Pozastaveno';document.body.className='';bodyState=''}
   else await start();
 });
 $('go').addEventListener('click',async()=>{
