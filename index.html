@@ -173,8 +173,8 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
   <svg class="hero" viewBox="0 0 300 180" aria-hidden="true">
     <path d="M32 152A118 118 0 0 1 268 152" fill="none" stroke="#1c2027" stroke-width="22" stroke-linecap="round"/>
     <path d="M32 152A118 118 0 0 1 268 152" fill="none" stroke="#34c77b" stroke-width="22" stroke-linecap="round" pathLength="100" stroke-dasharray="40 100"/>
-    <path d="M12 152A138 138 0 0 1 138.6 14.5" fill="none" stroke="#34c77b" stroke-width="4" stroke-linecap="round" opacity=".55"/>
-    <path d="M149 14A138 138 0 0 1 175.6 16.4" fill="none" stroke="#f5a524" stroke-width="4" stroke-linecap="round" opacity=".7"/>
+    <path d="M12 152A138 138 0 0 1 114.2 18.7" fill="none" stroke="#34c77b" stroke-width="4" stroke-linecap="round" opacity=".55"/>
+    <path d="M124.4 16.4A138 138 0 0 1 175.6 16.4" fill="none" stroke="#f5a524" stroke-width="4" stroke-linecap="round" opacity=".7"/>
     <path d="M185.8 18.7A138 138 0 0 1 288 152" fill="none" stroke="#ff453a" stroke-width="4" stroke-linecap="round" opacity=".75"/>
     <line x1="172.3" y1="54.5" x2="182.5" y2="9.7" stroke="#fff" stroke-width="3.5" stroke-linecap="round"/>
     <text x="150" y="146" text-anchor="middle" font-size="58" font-weight="700" fill="#34c77b" font-family="Atkinson Hyperlegible,system-ui,sans-serif">58</text>
@@ -317,6 +317,7 @@ input[type=text]{font:inherit;font-size:16px;width:100%;min-height:48px;padding:
 const $=id=>document.getElementById(id);
 const KEY='tichomer-v2',OFFSET=100,MIN=30,MAX=100,RES_NOTE=$('resNote').textContent,STREAK_RESET=600000;
 const DEF={limit:70,hold:5,msg:'Moc hluku! Ztište se, prosím.',vib:true,snd:false,corr:0,exam:true,examN:5,examMsg:'Píšeme písemku.'};
+const WARN=10; /* „Hlasitěji" začíná 10 dB pod limitem */
 const COL={'':'#34c77b',warn:'#f5a524',bad:'#ff453a'};
 const S={...DEF};
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||'{}'))}catch(e){}
@@ -518,7 +519,7 @@ function frame(t){
 function setText(id,v){const e=$(id);v=String(v);if(e.textContent!==v)e.textContent=v}
 function ui(){
   if(!running)return;
-  const st=leq>=S.limit?'bad':leq>=S.limit-6?'warn':'ok';
+  const st=leq>=S.limit?'bad':leq>=S.limit-WARN?'warn':'ok';
   const cls=st==='ok'?'':st;
   if(cls!==bodyState){bodyState=cls;document.body.className=cls}
   setText('aDb',Math.round(level));
@@ -535,7 +536,7 @@ const pt=(r,f)=>{const a=Math.PI*(1-f);return[(CX+r*Math.cos(a)).toFixed(1),(CY-
 const arcD=(r,f0,f1)=>{const p0=pt(r,f0),p1=pt(r,f1);return'M'+p0[0]+' '+p0[1]+'A'+r+' '+r+' 0 0 1 '+p1[0]+' '+p1[1]};
 (()=>{let h='';for(let db=MIN;db<=MAX;db+=10){const a=pt(96,frac(db)),b=pt(102,frac(db));h+='<line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'"/>'}$('ticks').innerHTML=h})();
 function tick(){
-  const f=frac(S.limit),fw=frac(S.limit-6),gap=0.012,L=$('tick'),a=pt(100,f),b=pt(146,f);
+  const f=frac(S.limit),fw=frac(S.limit-WARN),gap=0.012,L=$('tick'),a=pt(100,f),b=pt(146,f);
   L.setAttribute('x1',a[0]);L.setAttribute('y1',a[1]);L.setAttribute('x2',b[0]);L.setAttribute('y2',b[1]);
   $('zOk').setAttribute('d',fw-gap>0?arcD(138,0,fw-gap):'');
   $('zWarn').setAttribute('d',f-gap>fw+gap?arcD(138,fw+gap,f-gap):'');
